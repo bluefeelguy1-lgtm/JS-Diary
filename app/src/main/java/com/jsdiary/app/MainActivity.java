@@ -95,7 +95,15 @@ public class MainActivity extends Activity {
   }
   private String coupleKey(){return "couple_"+auth.getCurrentUser().getUid();}
   private String coupleId(){return getPreferences(MODE_PRIVATE).getString(coupleKey(),null);}
-  private void saveCouple(String id){getPreferences(MODE_PRIVATE).edit().putString(coupleKey(),id).apply();}
+  private void saveCouple(String id){
+    if(id==null)getPreferences(MODE_PRIVATE).edit().remove(coupleKey()).apply();
+    else getPreferences(MODE_PRIVATE).edit().putString(coupleKey(),id).apply();
+    if(auth.getCurrentUser()!=null){
+      Map<String,Object> record=new HashMap<>();record.put("coupleId",id==null?"":id);
+      db.collection("users").document(auth.getCurrentUser().getUid()).collection("private")
+        .document("coupleSettings").set(record);
+    }
+  }
   private void showSharedDiary(){
     String id=coupleId();
     if(id==null){showCoupleDialog();return;}
@@ -182,10 +190,18 @@ public class MainActivity extends Activity {
     account.setOnClickListener(v -> new AlertDialog.Builder(this).setMessage("로그아웃할까요? 이 기기의 기존 일기 데이터는 삭제되지 않습니다.").setNegativeButton("취소",null).setPositiveButton("로그아웃",(d,w)->{auth.signOut();showLogin();}).show());
     if(web!=null){web.destroy();web=null;}
     Button couple = new Button(this);couple.setText("♡ 커플 연결 / 초대 코드");layout.addView(couple);couple.setOnClickListener(v->showCoupleDialog());
+    String uid=auth.getCurrentUser().getUid();
+    db.collection("users").document(uid).collection("private").document("coupleSettings").get()
+      .addOnSuccessListener(doc->{String id=doc.getString("coupleId");if(id!=null&&!id.isEmpty()&&coupleId()==null)
+        getPreferences(MODE_PRIVATE).edit().putString(coupleKey(),id).apply();});
     Button shared=new Button(this);shared.setText("♡ 공유 일기 쓰기 / 보기");layout.addView(shared);shared.setOnClickListener(v->showSharedDiary());
     web = new WebView(this);
     web.addJavascriptInterface(new DiaryBridge(),"DiaryCloud");
-    web.setWebViewClient(new WebViewClient());
+    web.setWebViewClient(new WebViewClient(){
+      @Override public boolean shouldOverrideUrlLoading(WebView view,android.webkit.WebResourceRequest request){
+        return !("file".equals(request.getUrl().getScheme()) && "android_asset".equals(request.getUrl().getHost()));
+      }
+    });
     WebSettings s=web.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setAllowFileAccess(true);
     s.setAllowFileAccessFromFileURLs(false);s.setAllowUniversalAccessFromFileURLs(false);
     layout.addView(web,new LinearLayout.LayoutParams(-1,0,1));
