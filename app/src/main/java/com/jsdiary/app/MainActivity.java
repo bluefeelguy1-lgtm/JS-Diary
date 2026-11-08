@@ -112,12 +112,28 @@ public class MainActivity extends Activity {
       LinearLayout entries=new LinearLayout(this);entries.setOrientation(LinearLayout.VERTICAL);scroll.addView(entries);
       root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
       AlertDialog dialog=new AlertDialog.Builder(this).setTitle("♡ 우리의 공유 일기").setView(root).setPositiveButton("닫기",null).create();
-      Runnable refresh=()->db.collection("couples").document(id).collection("entries").orderBy("createdAt",Query.Direction.DESCENDING).limit(50).get()
-        .addOnSuccessListener(result->{entries.removeAllViews();for(DocumentSnapshot item:result){
-          TextView row=new TextView(this);
-          row.setText("♥ "+item.getString("title")+"\\n"+item.getString("text")+"\\n");
-          row.setTextSize(16);row.setPadding(8,14,8,14);entries.addView(row);
-        }}).addOnFailureListener(e->Toast.makeText(this,"공유 일기를 불러오지 못했습니다: "+e.getMessage(),Toast.LENGTH_LONG).show());
+      com.google.firebase.firestore.ListenerRegistration listener=db.collection("couples").document(id)
+        .collection("entries").orderBy("createdAt",Query.Direction.DESCENDING).limit(50)
+        .addSnapshotListener((result,error)->{
+          if(error!=null){Toast.makeText(this,"공유 일기 오류: "+error.getMessage(),Toast.LENGTH_LONG).show();return;}
+          if(result==null)return;
+          entries.removeAllViews();
+          for(DocumentSnapshot item:result){
+            LinearLayout line=new LinearLayout(this);line.setOrientation(LinearLayout.VERTICAL);
+            TextView row=new TextView(this);
+            row.setText("♥ "+item.getString("title")+"\\n"+item.getString("text")+"\\n");
+            row.setTextSize(16);row.setPadding(8,14,8,14);line.addView(row);
+            if(auth.getCurrentUser()!=null && auth.getCurrentUser().getUid().equals(item.getString("authorUid"))){
+              Button remove=new Button(this);remove.setText("내 글 삭제");
+              remove.setOnClickListener(v->new AlertDialog.Builder(this).setMessage("이 공유 일기를 삭제할까요?")
+                .setNegativeButton("취소",null).setPositiveButton("삭제",(d,w)->item.getReference().delete()
+                  .addOnFailureListener(e->Toast.makeText(this,"삭제 실패: "+e.getMessage(),Toast.LENGTH_LONG).show())).show());
+              line.addView(remove);
+            }
+            entries.addView(line);
+          }
+        });
+      dialog.setOnDismissListener(d->listener.remove());
       add.setOnClickListener(v->{
         if(body.getText().toString().trim().isEmpty()){body.setError("내용을 입력하세요");return;}
         Map<String,Object> entry=new HashMap<>();
@@ -125,10 +141,10 @@ public class MainActivity extends Activity {
         entry.put("text",body.getText().toString());entry.put("type","diary");
         entry.put("createdAt",com.google.firebase.Timestamp.now());
         db.collection("couples").document(id).collection("entries").add(entry).addOnSuccessListener(ref->{
-          title.setText("");body.setText("");refresh.run();
+          title.setText("");body.setText("");
         }).addOnFailureListener(e->Toast.makeText(this,"저장 실패: "+e.getMessage(),Toast.LENGTH_LONG).show());
       });
-      dialog.show();refresh.run();
+      dialog.show();
     }).addOnFailureListener(e->Toast.makeText(this,"연결 확인 실패: "+e.getMessage(),Toast.LENGTH_LONG).show());
   }
   private void showCoupleDialog(){
