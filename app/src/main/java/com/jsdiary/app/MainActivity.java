@@ -115,7 +115,7 @@ public class MainActivity extends Activity {
       Runnable refresh=()->db.collection("couples").document(id).collection("entries").orderBy("createdAt",Query.Direction.DESCENDING).limit(50).get()
         .addOnSuccessListener(result->{entries.removeAllViews();for(DocumentSnapshot item:result){
           TextView row=new TextView(this);
-          row.setText("♥ "+item.getString("title")+"\n"+item.getString("text")+"\n");
+          row.setText("♥ "+item.getString("title")+"\\n"+item.getString("text")+"\\n");
           row.setTextSize(16);row.setPadding(8,14,8,14);entries.addView(row);
         }}).addOnFailureListener(e->Toast.makeText(this,"공유 일기를 불러오지 못했습니다: "+e.getMessage(),Toast.LENGTH_LONG).show());
       add.setOnClickListener(v->{
