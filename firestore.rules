@@ -3,23 +3,33 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function owner(uid) { return signedIn() && request.auth.uid == uid; }
-    function coupleMember(coupleId) {
+    function member(coupleId) {
       return signedIn()
         && exists(/databases/$(database)/documents/couples/$(coupleId))
         && request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.members;
     }
     match /users/{uid} {
-      allow read: if owner(uid);
-      allow create: if owner(uid) && request.resource.data.keys().hasOnly(['displayName','createdAt','email']) ;
-      allow update: if owner(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['vip','role','founder']);
+      allow get: if owner(uid);
+      allow list: if false;
+      allow create: if owner(uid)
+        && request.resource.data.keys().hasOnly(['displayName','createdAt','email']);
+      allow update: if owner(uid)
+        && request.resource.data.keys().hasOnly(['displayName','createdAt','email'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName','email']);
       allow delete: if false;
       match /private/{docId} {
-        allow read, write: if owner(uid);
+        allow get: if owner(uid);
+        allow list: if false;
+        allow create, update: if owner(uid)
+          && docId == 'diaryData'
+          && request.resource.data.keys().hasOnly(['json'])
+          && request.resource.data.json is string
+          && request.resource.data.json.size() <= 750000;
+        allow delete: if false;
       }
-      match /{other=**} { allow read, write: if false; }
     }
     match /couples/{coupleId} {
-      allow get: if coupleMember(coupleId) || (signedIn() && coupleId.matches('[0-9a-f-]{36}'));
+      allow get: if signedIn() && coupleId.matches('[0-9a-f-]{36}');
       allow list: if false;
       allow create: if signedIn()
         && coupleId.matches('[0-9a-f-]{36}')
@@ -36,12 +46,24 @@ service cloud.firestore {
         && request.resource.data.members == [resource.data.createdBy, request.auth.uid];
       allow delete: if false;
       match /entries/{entryId} {
-        allow read: if coupleMember(coupleId);
-        allow create: if coupleMember(coupleId)
+        allow get, list: if member(coupleId);
+        allow create: if member(coupleId)
+          && request.resource.data.keys().hasOnly(['authorUid','title','text','type','createdAt'])
           && request.resource.data.authorUid == request.auth.uid
-          && request.resource.data.keys().hasOnly(['authorUid','title','text','type','createdAt']);
-        allow update, delete: if coupleMember(coupleId) && resource.data.authorUid == request.auth.uid
-          && (request.method == 'delete' || request.resource.data.authorUid == resource.data.authorUid);
+          && request.resource.data.title is string
+          && request.resource.data.title.size() <= 150
+          && request.resource.data.text is string
+          && request.resource.data.text.size() <= 10000
+          && request.resource.data.type == 'diary'
+          && request.resource.data.createdAt is timestamp;
+        allow update: if member(coupleId)
+          && resource.data.authorUid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title','text'])
+          && request.resource.data.title is string
+          && request.resource.data.title.size() <= 150
+          && request.resource.data.text is string
+          && request.resource.data.text.size() <= 10000;
+        allow delete: if member(coupleId) && resource.data.authorUid == request.auth.uid;
       }
     }
     match /{document=**} { allow read, write: if false; }
