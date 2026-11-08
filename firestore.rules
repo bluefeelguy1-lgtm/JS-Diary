@@ -20,11 +20,16 @@ service cloud.firestore {
       match /private/{docId} {
         allow get: if owner(uid);
         allow list: if false;
-        allow create, update: if owner(uid)
-          && docId == 'diaryData'
-          && request.resource.data.keys().hasOnly(['json'])
-          && request.resource.data.json is string
-          && request.resource.data.json.size() <= 750000;
+        allow create, update: if owner(uid) && (
+          (docId == 'diaryData'
+            && request.resource.data.keys().hasOnly(['json'])
+            && request.resource.data.json is string
+            && request.resource.data.json.size() <= 750000)
+          || (docId == 'coupleSettings'
+            && request.resource.data.keys().hasOnly(['coupleId'])
+            && request.resource.data.coupleId is string
+            && (request.resource.data.coupleId == '' || request.resource.data.coupleId.matches('[0-9a-f-]{36}')))
+        );
         allow delete: if false;
       }
     }
