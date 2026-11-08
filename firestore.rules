@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function owner(uid) { return signedIn() && request.auth.uid == uid; }
+    function coupleMember(coupleId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/couples/$(coupleId))
+        && request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.members;
+    }
+    match /users/{uid} {
+      allow read: if owner(uid);
+      allow create: if owner(uid) && request.resource.data.keys().hasOnly(['displayName','createdAt','email']) ;
+      allow update: if owner(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['vip','role','founder']);
+      allow delete: if false;
+      match /private/{docId} {
+        allow read, write: if owner(uid);
+      }
+      match /{other=**} { allow read, write: if false; }
+    }
+    match /couples/{coupleId} {
+      allow read: if coupleMember(coupleId);
+      allow create, update, delete: if false; // Trusted server workflow required for invitations and membership changes
+      match /entries/{entryId} {
+        allow read: if coupleMember(coupleId);
+        allow create: if coupleMember(coupleId)
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.keys().hasOnly(['authorUid','title','text','type','createdAt']);
+        allow update, delete: if coupleMember(coupleId) && resource.data.authorUid == request.auth.uid
+          && (request.method == 'delete' || request.resource.data.authorUid == resource.data.authorUid);
+      }
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}
