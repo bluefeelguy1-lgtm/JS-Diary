@@ -41,7 +41,7 @@ public class MainActivity extends Activity {
       }).addOnFailureListener(e->js("window.cloudError("+JSONObject.quote(e.getMessage())+")"));
     }
     @JavascriptInterface public void save(String json){
-      if(auth.getCurrentUser()==null || json.length()>750000)return;
+      if(auth.getCurrentUser()==null || json==null || json.length()>750000){js("window.cloudError('로그인 또는 저장 용량을 확인하세요')");return;}
       try {new JSONObject(json);}catch(Exception e){return;}
       String uid=auth.getCurrentUser().getUid();
       Map<String,Object> doc=new HashMap<>();doc.put("json",json);
