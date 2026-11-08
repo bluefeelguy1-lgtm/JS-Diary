@@ -3,6 +3,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+concurrency:
+  group: js-diary-apk-release
+  cancel-in-progress: false
 permissions:
   contents: write
 jobs:
@@ -55,6 +58,7 @@ jobs:
           apk="$(find app/build/outputs/apk/debug -name '*.apk' -type f | head -n 1)"
           test -n "$apk"
           cp "$apk" JS-Diary-latest.apk
+          test -s JS-Diary-latest.apk
           if gh release view js-diary-latest >/dev/null 2>&1; then
             gh release upload js-diary-latest JS-Diary-latest.apk --clobber
           else
