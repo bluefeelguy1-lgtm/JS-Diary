@@ -4,7 +4,7 @@ on:
     branches: [main]
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -45,3 +45,18 @@ jobs:
           name: JS-Diary-Android-debug-APK
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      - name: Publish latest test APK as GitHub release
+        if: success() && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          apk="$(find app/build/outputs/apk/debug -name '*.apk' -type f | head -n 1)"
+          test -n "$apk"
+          cp "$apk" JS-Diary-latest.apk
+          if gh release view js-diary-latest >/dev/null 2>&1; then
+            gh release upload js-diary-latest JS-Diary-latest.apk --clobber
+          else
+            gh release create js-diary-latest JS-Diary-latest.apk --title "JS다이어리 최신 테스트 APK" --notes "테스트용 APK입니다. Firebase 보안 규칙이 게시되기 전까지 클라우드 기능이 동작하지 않을 수 있습니다." --prerelease
+          fi
