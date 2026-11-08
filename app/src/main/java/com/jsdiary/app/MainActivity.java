@@ -15,10 +15,37 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.FirebaseFirestore;
+import android.webkit.JavascriptInterface;
+import org.json.JSONObject;
+import java.util.HashMap;
+import java.util.Map;
 
 public class MainActivity extends Activity {
   private WebView web;
   private FirebaseAuth auth;
+  private final FirebaseFirestore db = FirebaseFirestore.getInstance();
+  private void js(String script){runOnUiThread(()->{if(web!=null)web.evaluateJavascript(script,null);});}
+  public class DiaryBridge {
+    @JavascriptInterface public void load(){
+      if(auth.getCurrentUser()==null)return;
+      String uid=auth.getCurrentUser().getUid();
+      db.collection("users").document(uid).collection("private").document("diaryData").get().addOnSuccessListener(doc->{
+        String value=doc.getString("json");
+        if(value==null) js("window.cloudLoaded(null)");
+        else js("window.cloudLoaded("+JSONObject.quote(value)+")");
+      }).addOnFailureListener(e->js("window.cloudError("+JSONObject.quote(e.getMessage())+")"));
+    }
+    @JavascriptInterface public void save(String json){
+      if(auth.getCurrentUser()==null || json.length()>750000)return;
+      try {new JSONObject(json);}catch(Exception e){return;}
+      String uid=auth.getCurrentUser().getUid();
+      Map<String,Object> doc=new HashMap<>();doc.put("json",json);
+      db.collection("users").document(uid).collection("private").document("diaryData").set(doc)
+        .addOnSuccessListener(v->js("window.cloudSaved()"))
+        .addOnFailureListener(e->js("window.cloudError("+JSONObject.quote(e.getMessage())+")"));
+    }
+  }
   @Override public void onCreate(Bundle b) {
     super.onCreate(b);
     getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE,WindowManager.LayoutParams.FLAG_SECURE);
@@ -63,7 +90,9 @@ public class MainActivity extends Activity {
     LinearLayout layout = new LinearLayout(this);layout.setOrientation(LinearLayout.VERTICAL);
     Button account = new Button(this); account.setText("계정: "+auth.getCurrentUser().getEmail()+"  ·  로그아웃");layout.addView(account);
     account.setOnClickListener(v -> new AlertDialog.Builder(this).setMessage("로그아웃할까요? 이 기기의 기존 일기 데이터는 삭제되지 않습니다.").setNegativeButton("취소",null).setPositiveButton("로그아웃",(d,w)->{auth.signOut();showLogin();}).show());
+    if(web!=null){web.destroy();web=null;}
     web = new WebView(this);
+    web.addJavascriptInterface(new DiaryBridge(),"DiaryCloud");
     web.setWebViewClient(new WebViewClient());
     WebSettings s=web.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setAllowFileAccess(true);
     s.setAllowFileAccessFromFileURLs(false);s.setAllowUniversalAccessFromFileURLs(false);
