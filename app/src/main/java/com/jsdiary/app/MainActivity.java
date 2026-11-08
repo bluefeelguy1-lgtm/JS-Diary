@@ -68,7 +68,7 @@ public class MainActivity extends Activity {
     WebSettings s=web.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setAllowFileAccess(true);
     s.setAllowFileAccessFromFileURLs(false);s.setAllowUniversalAccessFromFileURLs(false);
     layout.addView(web,new LinearLayout.LayoutParams(-1,0,1));
-    setContentView(layout);web.loadUrl("file:///android_asset/index.html");
+    setContentView(layout);web.loadUrl("file:///android_asset/index.html?uid="+android.net.Uri.encode(auth.getCurrentUser().getUid()));
   }
   @Override public void onBackPressed(){if(web!=null && web.canGoBack())web.goBack();else super.onBackPressed();}
   @Override protected void onDestroy(){if(web!=null){web.destroy();web=null;}super.onDestroy();}
