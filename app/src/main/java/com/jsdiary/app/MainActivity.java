@@ -74,6 +74,8 @@ public class MainActivity extends Activity {
     layout.addView(password);
     Button login = new Button(this); login.setText("로그인"); layout.addView(login);
     Button register = new Button(this); register.setText("새 계정 만들기"); layout.addView(register);
+    Button reset = new Button(this);reset.setText("비밀번호를 잊으셨나요?");layout.addView(reset);
+    reset.setOnClickListener(v->{String address=email.getText().toString().trim();if(!android.util.Patterns.EMAIL_ADDRESS.matcher(address).matches()){email.setError("이메일을 먼저 입력하세요");return;}auth.sendPasswordResetEmail(address).addOnSuccessListener(x->Toast.makeText(this,"비밀번호 재설정 메일을 보냈습니다",Toast.LENGTH_LONG).show()).addOnFailureListener(e->Toast.makeText(this,"요청을 처리하지 못했습니다: "+e.getLocalizedMessage(),Toast.LENGTH_LONG).show());});
     setContentView(layout);
     login.setOnClickListener(v -> signIn(email.getText().toString().trim(),password.getText().toString(),false));
     register.setOnClickListener(v -> signIn(email.getText().toString().trim(),password.getText().toString(),true));
@@ -131,7 +133,7 @@ public class MainActivity extends Activity {
   }
   private void showCoupleDialog(){
     String existing=coupleId();
-    if(existing!=null){new AlertDialog.Builder(this).setTitle("커플 초대 코드").setMessage(existing+"\n상대방에게 이 코드를 전달하세요.").setPositiveButton("확인",null).show();return;}
+    if(existing!=null){new AlertDialog.Builder(this).setTitle("커플 초대 코드").setMessage(existing+"\n상대방에게 이 코드를 전달하세요.").setNeutralButton("코드 복사",(d,w)->{android.content.ClipboardManager cm=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);cm.setPrimaryClip(android.content.ClipData.newPlainText("JS다이어리 커플 코드",existing));Toast.makeText(this,"초대 코드 복사 완료",Toast.LENGTH_SHORT).show();}).setPositiveButton("확인",null).show();return;}
     new AlertDialog.Builder(this).setTitle("커플 연결").setItems(new String[]{"초대 코드 만들기","상대방 코드로 연결"},(d,which)->{
       String uid=auth.getCurrentUser().getUid();
       if(which==0){
