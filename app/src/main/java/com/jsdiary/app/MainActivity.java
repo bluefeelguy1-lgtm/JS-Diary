@@ -22,6 +22,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Arrays;
 import java.util.UUID;
+import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.DocumentSnapshot;
 
 public class MainActivity extends Activity {
   private WebView web;
@@ -55,6 +57,7 @@ public class MainActivity extends Activity {
     if (auth.getCurrentUser() == null) showLogin(); else showDiary();
   }
   private void showLogin() {
+    if(web!=null){web.destroy();web=null;}
     LinearLayout layout = new LinearLayout(this);
     layout.setOrientation(LinearLayout.VERTICAL);
     layout.setPadding(40, 50, 40, 20);
@@ -91,9 +94,44 @@ public class MainActivity extends Activity {
   private String coupleKey(){return "couple_"+auth.getCurrentUser().getUid();}
   private String coupleId(){return getPreferences(MODE_PRIVATE).getString(coupleKey(),null);}
   private void saveCouple(String id){getPreferences(MODE_PRIVATE).edit().putString(coupleKey(),id).apply();}
+  private void showSharedDiary(){
+    String id=coupleId();
+    if(id==null){showCoupleDialog();return;}
+    db.collection("couples").document(id).get().addOnSuccessListener(doc->{
+      if(!doc.exists() || !(doc.get("members") instanceof java.util.List)
+        || !((java.util.List<?>)doc.get("members")).contains(auth.getCurrentUser().getUid())){
+        saveCouple(null);Toast.makeText(this,"커플 연결을 다시 확인해 주세요",Toast.LENGTH_LONG).show();return;
+      }
+      LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(24,16,24,16);
+      EditText title=new EditText(this);title.setHint("공유 일기 제목");root.addView(title);
+      EditText body=new EditText(this);body.setHint("둘이 함께 볼 이야기");body.setMinLines(3);root.addView(body);
+      Button add=new Button(this);add.setText("공유 일기 올리기");root.addView(add);
+      android.widget.ScrollView scroll=new android.widget.ScrollView(this);
+      LinearLayout entries=new LinearLayout(this);entries.setOrientation(LinearLayout.VERTICAL);scroll.addView(entries);
+      root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+      AlertDialog dialog=new AlertDialog.Builder(this).setTitle("♡ 우리의 공유 일기").setView(root).setPositiveButton("닫기",null).create();
+      Runnable refresh=()->db.collection("couples").document(id).collection("entries").orderBy("createdAt",Query.Direction.DESCENDING).limit(50).get()
+        .addOnSuccessListener(result->{entries.removeAllViews();for(DocumentSnapshot item:result){
+          TextView row=new TextView(this);
+          row.setText("♥ "+item.getString("title")+"\\n"+item.getString("text")+"\\n");
+          row.setTextSize(16);row.setPadding(8,14,8,14);entries.addView(row);
+        }}).addOnFailureListener(e->Toast.makeText(this,"공유 일기를 불러오지 못했습니다: "+e.getMessage(),Toast.LENGTH_LONG).show());
+      add.setOnClickListener(v->{
+        if(body.getText().toString().trim().isEmpty()){body.setError("내용을 입력하세요");return;}
+        Map<String,Object> entry=new HashMap<>();
+        entry.put("authorUid",auth.getCurrentUser().getUid());entry.put("title",title.getText().toString());
+        entry.put("text",body.getText().toString());entry.put("type","diary");
+        entry.put("createdAt",com.google.firebase.Timestamp.now());
+        db.collection("couples").document(id).collection("entries").add(entry).addOnSuccessListener(ref->{
+          title.setText("");body.setText("");refresh.run();
+        }).addOnFailureListener(e->Toast.makeText(this,"저장 실패: "+e.getMessage(),Toast.LENGTH_LONG).show());
+      });
+      dialog.show();refresh.run();
+    }).addOnFailureListener(e->Toast.makeText(this,"연결 확인 실패: "+e.getMessage(),Toast.LENGTH_LONG).show());
+  }
   private void showCoupleDialog(){
     String existing=coupleId();
-    if(existing!=null){new AlertDialog.Builder(this).setTitle("커플 초대 코드").setMessage(existing+"\\n상대방에게 이 코드를 전달하세요.").setPositiveButton("확인",null).show();return;}
+    if(existing!=null){new AlertDialog.Builder(this).setTitle("커플 초대 코드").setMessage(existing+"\n상대방에게 이 코드를 전달하세요.").setPositiveButton("확인",null).show();return;}
     new AlertDialog.Builder(this).setTitle("커플 연결").setItems(new String[]{"초대 코드 만들기","상대방 코드로 연결"},(d,which)->{
       String uid=auth.getCurrentUser().getUid();
       if(which==0){
@@ -126,6 +164,7 @@ public class MainActivity extends Activity {
     account.setOnClickListener(v -> new AlertDialog.Builder(this).setMessage("로그아웃할까요? 이 기기의 기존 일기 데이터는 삭제되지 않습니다.").setNegativeButton("취소",null).setPositiveButton("로그아웃",(d,w)->{auth.signOut();showLogin();}).show());
     if(web!=null){web.destroy();web=null;}
     Button couple = new Button(this);couple.setText("♡ 커플 연결 / 초대 코드");layout.addView(couple);couple.setOnClickListener(v->showCoupleDialog());
+    Button shared=new Button(this);shared.setText("♡ 공유 일기 쓰기 / 보기");layout.addView(shared);shared.setOnClickListener(v->showSharedDiary());
     web = new WebView(this);
     web.addJavascriptInterface(new DiaryBridge(),"DiaryCloud");
     web.setWebViewClient(new WebViewClient());
