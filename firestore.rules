@@ -19,7 +19,8 @@ service cloud.firestore {
       match /{other=**} { allow read, write: if false; }
     }
     match /couples/{coupleId} {
-      allow read: if coupleMember(coupleId);
+      allow get: if coupleMember(coupleId) || (signedIn() && coupleId.matches('[0-9a-f-]{36}'));
+      allow list: if false;
       allow create: if signedIn()
         && coupleId.matches('[0-9a-f-]{36}')
         && request.resource.data.keys().hasOnly(['members','createdBy'])
