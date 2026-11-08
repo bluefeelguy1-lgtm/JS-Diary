@@ -20,7 +20,20 @@ service cloud.firestore {
     }
     match /couples/{coupleId} {
       allow read: if coupleMember(coupleId);
-      allow create, update, delete: if false; // Trusted server workflow required for invitations and membership changes
+      allow create: if signedIn()
+        && coupleId.matches('[0-9a-f-]{36}')
+        && request.resource.data.keys().hasOnly(['members','createdBy'])
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.members == [request.auth.uid];
+      allow update: if signedIn()
+        && resource.data.keys().hasOnly(['members','createdBy'])
+        && request.resource.data.keys().hasOnly(['members','createdBy'])
+        && resource.data.members.size() == 1
+        && resource.data.createdBy == resource.data.members[0]
+        && request.auth.uid != resource.data.createdBy
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.members == [resource.data.createdBy, request.auth.uid];
+      allow delete: if false;
       match /entries/{entryId} {
         allow read: if coupleMember(coupleId);
         allow create: if coupleMember(coupleId)
