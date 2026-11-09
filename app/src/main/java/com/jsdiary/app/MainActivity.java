@@ -5,7 +5,6 @@ import android.app.AlertDialog;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.View;
-import android.view.WindowManager;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -52,7 +51,6 @@ public class MainActivity extends Activity {
   }
   @Override public void onCreate(Bundle b) {
     super.onCreate(b);
-    getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE,WindowManager.LayoutParams.FLAG_SECURE);
     auth = FirebaseAuth.getInstance();
     if (auth.getCurrentUser() == null) showLogin(); else showDiary();
   }
@@ -129,7 +127,7 @@ public class MainActivity extends Activity {
           for(DocumentSnapshot item:result){
             LinearLayout line=new LinearLayout(this);line.setOrientation(LinearLayout.VERTICAL);
             TextView row=new TextView(this);
-            row.setText("♥ "+item.getString("title")+"\\n"+item.getString("text")+"\\n");
+            row.setText("♥ "+item.getString("title")+"\n"+item.getString("text")+"\n");
             row.setTextSize(16);row.setPadding(8,14,8,14);line.addView(row);
             if(auth.getCurrentUser()!=null && auth.getCurrentUser().getUid().equals(item.getString("authorUid"))){
               Button remove=new Button(this);remove.setText("내 글 삭제");
