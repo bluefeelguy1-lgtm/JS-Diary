@@ -59,8 +59,9 @@ jobs:
           test -n "$apk"
           cp "$apk" JS-Diary-latest.apk
           test -s JS-Diary-latest.apk
+          cp app/src/main/assets/index.html JS-Diary-browser.html
           if gh release view js-diary-latest >/dev/null 2>&1; then
-            gh release upload js-diary-latest JS-Diary-latest.apk --clobber
+            gh release upload js-diary-latest JS-Diary-latest.apk JS-Diary-browser.html --clobber
           else
-            gh release create js-diary-latest JS-Diary-latest.apk --title "JS다이어리 최신 테스트 APK" --notes "테스트용 APK입니다. Firebase 보안 규칙이 게시되기 전까지 클라우드 기능이 동작하지 않을 수 있습니다." --prerelease
+            gh release create js-diary-latest JS-Diary-latest.apk JS-Diary-browser.html --title "JS다이어리 최신 테스트 APK" --notes "테스트용 APK입니다. Firebase 보안 규칙이 게시되기 전까지 클라우드 기능이 동작하지 않을 수 있습니다." --prerelease
           fi
