@@ -193,19 +193,6 @@ public class MainActivity extends Activity {
       .addOnSuccessListener(doc->{String id=doc.getString("coupleId");if(id!=null&&!id.isEmpty()&&coupleId()==null)
         getPreferences(MODE_PRIVATE).edit().putString(coupleKey(),id).apply();});
     Button shared=new Button(this);shared.setText("♡ 공유 일기 쓰기 / 보기");layout.addView(shared);shared.setOnClickListener(v->showSharedDiary());
-    Button unlink=new Button(this);unlink.setText("커플 연결 해제 (내 계정)");
-    layout.addView(unlink);
-    unlink.setOnClickListener(v->{
-      if(coupleId()==null){Toast.makeText(this,"연결된 커플이 없습니다",Toast.LENGTH_SHORT).show();return;}
-      new AlertDialog.Builder(this).setTitle("커플 연결 해제")
-        .setMessage("내 계정에서 커플 연결을 해제합니다. 기존 공유 일기는 삭제되지 않으며 상대방 계정의 연결도 유지됩니다. 계속할까요?")
-        .setNegativeButton("취소",null)
-        .setPositiveButton("연결 해제",(d,w)->{
-          String previous=coupleId();
-          saveCouple(null);
-          Toast.makeText(this,"내 계정의 커플 연결을 해제했습니다",Toast.LENGTH_LONG).show();
-        }).show();
-    });
     web = new WebView(this);
     web.addJavascriptInterface(new DiaryBridge(),"DiaryCloud");
     web.setWebViewClient(new WebViewClient(){
